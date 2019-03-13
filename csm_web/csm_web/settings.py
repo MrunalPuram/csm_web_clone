@@ -12,6 +12,14 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 
 import os
 
+# Analogous to RAILS_ENV, is one of {prod, dev}. Defaults to dev. This default can be
+# dangerous, but is worth it to avoid the hassle for developers setting the local ENV
+# var
+DEVELOPMENT = "dev"
+PRODUCTION = "prod"
+DJANGO_ENV = os.environ.get("DJANGO_ENV", DEVELOPMENT)
+assert DJANGO_ENV in (DEVELOPMENT, PRODUCTION)
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,14 +27,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
+# TODO
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "***REMOVED***"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
+# TODO
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = DJANGO_ENV == DEVELOPMENT
 
 ALLOWED_HOSTS = []
 
+# Change this when Matthew graduates I guess
+ADMINS = [
+    ("Jonathan Shi", "jhshi@berkeley.edu"),
+    ("Matthew Soh", "matthewsoh@berkeley.edu"),
+]
 
 # Application definition
 
@@ -40,6 +55,7 @@ INSTALLED_APPS = [
     "scheduler.apps.SchedulerConfig",
     "rest_framework",
     "social_django",
+    "eventlog.apps.EventLogConfig",
     "frontend",
 ]
 
@@ -67,7 +83,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "social_django.context_processors.backends",
-                "social_django.context_processors.login_redirect",
+                # "social_django.context_processors.login_redirect",
             ]
         },
     }
@@ -139,11 +155,11 @@ AUTHENTICATION_BACKENDS = (
 
 # Python Social Auth
 
-LOGIN_REDIRECT_URL = "/scheduler"
+LOGIN_REDIRECT_URL = "/"
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = (
-    "***REMOVED***"
-)
+LOGIN_URL = "/login"
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
 
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
@@ -159,7 +175,7 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 # TODO Roll this for production
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = "***REMOVED***"
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
 SOCIAL_AUTH_GOOGLE_OAUTH2_IGNORE_DEFAULT_SCOPE = True
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     "https://www.googleapis.com/auth/userinfo.email",
@@ -173,3 +189,75 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.BrowsableAPIRenderer",
     )
 }
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {"format": "{asctime} {module} {levelname} {message}", "style": "{"}
+    },
+    "handlers": {
+        "console-django": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+        "console-models": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+        "mail_admins": {
+            "level": "ERROR",
+            "class": "django.utils.log.AdminEmailHandler",
+            "formatter": "default",
+        },
+        "info": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+        "low-level": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+        "models": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console-django", "info", "mail_admins"],
+            "level": "INFO",
+        },
+        "django.request": {
+            "handlers": ["low-level"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "scheduler.signals": {
+            "handlers": ["console-models", "mail_admins", "models"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
+
+if DJANGO_ENV == PRODUCTION:
+    # Security/HTTPS headers
+    # https://docs.djangoproject.com/en/2.1/ref/middleware/#module-django.middleware.security
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # TODO change to 1 year (31536000s) once we're sure this works
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_PRELOAD = True
+    # ideally would be handled by nginx or something, but needed for heroku
+    SECURE_SSL_REDIRECT = True
+
+    # Heroku setup
+    import django_heroku
+
+    django_heroku.settings(locals())

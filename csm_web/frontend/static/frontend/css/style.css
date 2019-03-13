@@ -1,3 +1,198 @@
-.section-summary  p {
-	margin: 0px;
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: "Source Sans Pro", sans-serif;
+}
+
+#login-container {
+  width: 100%;
+  height: 100%;
+  margin: auto;
+  text-align: center;
+}
+
+#login-card {
+  display: inline-block;
+  width: 80%;
+  max-width: 25em;
+  height: 24em;
+  margin-top: 10%;
+  padding: 3em 1em 3em 1em;
+}
+
+#login-btn {
+  width: 35%;
+  min-width:10em;
+  font-family: "Source Sans Pro", sans-serif;
+  margin: auto;
+  margin-top: 4em;
+  box-shadow: 0px 4px 4px #0002;
+}
+
+#login-subtitle {
+  display: block;
+  margin: auto;
+  margin-top: 0.5em;
+  font-family: "Source Sans Pro", sans-serif;
+  font-weight: 400;
+  font-size: 0.75em;
+  text-align: center;
+  opacity: 0.5;
+}
+
+#login-logo {
+  display: block;
+  width: 20em;
+  max-width: 75%;
+  margin: auto;
+}
+
+.logo-img {
+  height: 1.5em;
+}
+
+#section-btn {
+  font-family: "Source Sans Pro", sans-serif;
+  font-weight: 700;
+  font-size: 1.2em;
+  color: white;
+  text-shadow: 0px 1px #3333;
+}
+
+#navbar {
+  background: #9be0b4;
+}
+
+.uk-nav > li > a {
+  padding: 0;
+}
+
+#section-dropdown {
+  padding: 0;
+}
+
+.section-dropdown-entry {
+  font-family: "Source Sans Pro", sans-serif;
+  padding: 1em;
+  border-bottom: 1px solid #ccc;
+  border-top: 1px solid #eee;
+}
+
+.section-dropdown-entry-course-label {
+  font-family: "Source Sans Pro", sans-serif;
+  color: #000;
+  opacity: 0.7;
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0em;
+}
+
+.section-dropdown-entry-time {
+  font-family: "Source Sans Pro", sans-serif;
+  color: #000;
+  opacity: 0.6;
+  font-size: 1em;
+  font-weight: 400;
+  margin: 0em;
+}
+
+#section-enroll-btn {
+  font-family: "Source Sans Pro", sans-serif;
+  text-transform: uppercase;
+  line-height: 1em;
+  padding: 0.5em;
+  font-weight: 900;
+  text-align: center;
+  color: #9be0b4;
+  border-top: 1px solid #eee;
+}
+
+.course-nav-entry {
+  margin: 0;
+  padding: 0;
+}
+
+.course-nav-entry-text {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 1.5em;
+  font-weight: 600;
+  opacity: 0.8;
+  margin: 0;
+  padding: 0px 0px 0px 0.5em;
+}
+
+.course-hero {
+  padding: 1em;
+}
+
+.course-hero-label {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 2.5em;
+}
+
+.course-hero-alert {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 1em;
+}
+
+#coursenav-container {
+  padding-top: 1em;
+}
+
+#coursenav-title {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 2em;
+  font-weight: 600;
+  padding-left: 0.5em;
+}
+
+.section-enroll {
+  padding: 1em !important;
+  font-family: "Source Sans Pro", sans-serif;
+}
+
+.section-enroll-container {
+  max-width: 25em;
+}
+
+.section-enroll-data{
+  float: left
+}
+
+.section-enroll-spacetime {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.section-enroll-mentor-label {
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 1em 0 0 0;
+}
+
+.section-enroll-mentor{
+  font-size: 1em;
+  margin: 0;
+}
+
+.section-enroll-mentor{
+  font-size: 1em;
+  margin: 0;
+}
+
+.section-enroll-capacity{
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.25em 0 1em 0;
+}
+
+.section-enroll-btn{
+  float: right;
+  padding-top: 5em;
+}
+
+.section-enroll-btn > button {
+  bottom: 1em;
 }

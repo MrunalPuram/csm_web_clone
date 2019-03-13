@@ -1,11 +1,12 @@
 import React from "react";
+import { Redirect } from "react-router-dom";
 import { groupBy } from "lodash";
 import moment from "moment";
-import { post } from "../utils/api";
+import { fetchWithMethod, fetchJSON, HTTP_METHODS } from "../utils/api";
 import { alert_modal } from "../utils/common";
 
 const API_TIME_FORMAT = "HH:mm:ss";
-const DISPLAY_TIME_FORMAT = "HH:mm A";
+const DISPLAY_TIME_FORMAT = "h:mm A";
 const dayOfWeek = {
   Monday: 0,
   Tuesday: 1,
@@ -18,10 +19,16 @@ const dayOfWeek = {
 
 function CourseDetail(props) {
   return (
-    <div>
-      <h1>{props.course}</h1>
-      {props.enrolled && <h3>You are enrolled in this course</h3>}
-      {!props.enrollmentOpen && <h3>This course is not open for enrollment</h3>}
+    <div className="course-hero">
+      <h1 className="course-hero-label">{props.course}</h1>
+      {props.enrolled && (
+        <h3 className="course-hero-alert">You are enrolled in this course</h3>
+      )}
+      {!props.enrollmentOpen && (
+        <h3 className="course-hero-alert">
+          This course is not open for enrollment
+        </h3>
+      )}
     </div>
   );
 }
@@ -33,7 +40,8 @@ class Course extends React.Component {
       course: props.course,
       sections: {},
       enrolled: false,
-      enrollmentOpen: false
+      enrollmentOpen: false,
+      viewSection: null
     };
   }
 
@@ -61,56 +69,66 @@ class Course extends React.Component {
     const now = moment();
     const enrollmentStart = moment(this.state.course.enrollmentStart);
     const enrollmentEnd = moment(this.state.course.enrollmentEnd);
-    this.setState((state, props) => {
-      return {
-        enrollmentOpen: now > enrollmentStart && now < enrollmentEnd
-      };
+    this.setState({
+      enrollmentOpen: now > enrollmentStart && now < enrollmentEnd
     });
 
-    fetch("/scheduler/profiles/")
-      .then(response => response.json())
-      .then(profiles => {
-        this.setState((state, props) => {
-          const courses = profiles.map(profile => profile.course);
-          return {
-            enrolled: courses.includes(state.course.id)
-          };
-        });
+    fetchJSON("profiles/").then(profiles => {
+      this.setState(state => {
+        enrolled: profiles.some(profile => profile.course == state.course.id);
       });
-    fetch(`/scheduler/courses/${this.state.course.name}/sections/`)
-      .then(response => response.json())
-      .then(sections => {
-        this.setState((state, props) => {
-          return {
-            sections: groupBy(
-              sections,
-              section => section.defaultSpacetime.dayOfWeek
-            )
-          };
-        });
+    });
+    fetchJSON(`courses/${this.state.course.name}/sections/`).then(sections => {
+      this.setState({
+        sections: groupBy(
+          sections,
+          section => section.defaultSpacetime.dayOfWeek
+        )
       });
+    });
   }
 
   render() {
-    const days = Object.entries(this.state.sections)
-      .sort((item1, item2) => {
-        const day1 = dayOfWeek[item1[0]];
-        const day2 = dayOfWeek[item2[0]];
-        return day1 - day2;
-      })
-      .map(item => {
-        const [day, sections] = item;
-        return (
-          <Day
-            key={day}
-            enrolled={this.state.enrolled}
-            enrollmentOpen={this.state.enrollmentOpen}
-            day={day}
-            sections={sections}
-            update={() => this.updateCourse()}
-          />
-        );
-      });
+    if (
+      this.state.viewSection !== null &&
+      this.state.viewSection !== undefined
+    ) {
+      return <Redirect to={`/sections/${this.state.viewSection}`} push />;
+    }
+
+    const dayComparator = (item1, item2) => {
+      const day1 = dayOfWeek[item1[0]];
+      const day2 = dayOfWeek[item2[0]];
+      return day1 - day2;
+    };
+
+    const sortedSections = Object.entries(this.state.sections).sort(
+      dayComparator
+    );
+
+    const days = sortedSections.map(item => {
+      const [day, sections] = item;
+      return (
+        <Day
+          key={day}
+          enrolled={this.state.enrolled}
+          enrollmentOpen={this.state.enrollmentOpen}
+          day={day}
+          sections={sections}
+          update={() => this.updateCourse()}
+          viewSection={id => this.setState({ viewSection: id })}
+        />
+      );
+    });
+
+    const dayHeaders = sortedSections.map(item => {
+      const [day, ,] = item; // ignore second entry of item
+      return (
+        <li key={day}>
+          <a href="#">{day}</a>
+        </li>
+      );
+    });
 
     return (
       <div>
@@ -122,7 +140,10 @@ class Course extends React.Component {
           />
         </div>
         <div>
-          <ul uk-accordion="true">{days}</ul>
+          <ul data-uk-tab="connect: #days-list">{dayHeaders}</ul>
+          <ul id="days-list" className="uk-switcher">
+            {days}
+          </ul>
         </div>
       </div>
     );
@@ -142,24 +163,20 @@ function Day(props) {
       );
       return time1 - time2;
     })
-    .map((section, index) => (
+    .map(section => (
       <SectionEnroll
         enrolled={props.enrolled}
         enrollmentOpen={props.enrollmentOpen}
         section={section}
         key={section.id}
         update={props.update}
+        viewSection={props.viewSection}
       />
     ));
   return (
-    <li>
-      <a className="uk-accordion-title" href="#">
-        {props.day}
-      </a>
-      <div className="uk-accordion-content">
-        <ul>{sections}</ul>
-      </div>
-    </li>
+    <div>
+      <ul className="uk-list uk-list-striped">{sections}</ul>
+    </div>
   );
 }
 
@@ -174,7 +191,7 @@ function SectionEnroll(props) {
     // TODO is there a nicer way to do this with async rather than this external
     // variable?
     var ok = false;
-    post(`scheduler/sections/${props.section.id}/enroll`, {})
+    fetchWithMethod(`sections/${props.section.id}/enroll`, HTTP_METHODS.POST)
       .then(response => {
         ok = response.ok;
         return response.json();
@@ -193,7 +210,7 @@ function SectionEnroll(props) {
               break;
             case "section_full":
               errorMessage =
-                "This course is not currently open for enrollment.";
+                "This section is full. Please select another section.";
               break;
             default:
               errorMessage = "An unknown error has occurred.";
@@ -206,7 +223,7 @@ function SectionEnroll(props) {
             `You've successfully enrolled in section ${
               props.section.id
             } at ${location}, ${startTime}`,
-            () => {}
+            () => props.viewSection(props.section.id)
           );
         }
 
@@ -215,26 +232,40 @@ function SectionEnroll(props) {
       });
   }
 
-  const available = props.section.capacity - props.section.enrolledStudents;
+  const available = Math.max(
+    0,
+    props.section.capacity - props.section.enrolledStudents
+  );
   const pluralized_spot = available === 1 ? "spot" : "spots";
-  const disabled = props.enrolled || !props.enrollmentOpen || available === 0;
+  const disabled = props.enrolled || !props.enrollmentOpen || available <= 0;
 
   return (
-    <li>
-      <h4>
-        {location} - {startTime}
-      </h4>
-      <p>
-        {props.section.enrolledStudents}/{props.section.capacity} - {available}{" "}
-        {pluralized_spot} available
-      </p>
-      <button
-        className="uk-button uk-button-default"
-        disabled={disabled}
-        onClick={handleClick}
-      >
-        Enroll
-      </button>
+    <li className="section-enroll">
+      <div className="section-enroll-container">
+        <div className="section-enroll-data">
+          <p className="section-enroll-spacetime">
+            {location} - {startTime}
+          </p>
+          <p className="section-enroll-mentor-label">Mentor</p>
+          <p className="section-enroll-mentor">
+            {props.section.mentor.user.firstName}{" "}
+            {props.section.mentor.user.lastName}
+          </p>
+          <p className="section-enroll-capacity">
+            {props.section.enrolledStudents}/{props.section.capacity} -{" "}
+            {available} {pluralized_spot} available
+          </p>
+        </div>
+        <div className="section-enroll-btn">
+          <button
+            className="uk-button uk-button-primary"
+            disabled={disabled}
+            onClick={handleClick}
+          >
+            Enroll
+          </button>
+        </div>
+      </div>
     </li>
   );
 }

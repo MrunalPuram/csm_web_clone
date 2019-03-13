@@ -9,38 +9,63 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
-from .models import User, Attendance, Course, Profile, Section, Spacetime, Override
+from .models import (
+    User,
+    Attendance,
+    Course,
+    Profile,
+    Section,
+    Spacetime,
+    Override,
+    Flag,
+)
 from .serializers import (
     UserSerializer,
     AttendanceSerializer,
     CourseSerializer,
     ProfileSerializer,
     VerboseProfileSerializer,
+    UserProfileSerializer,
     SectionSerializer,
     SpacetimeSerializer,
     OverrideSerializer,
+    FlagSerializer,
 )
-from .permissions import is_leader, IsLeader, IsLeaderOrReadOnly, IsReadIfOwner, IsOwner
+from .permissions import (
+    is_leader,
+    IsLeader,
+    IsLeaderOrReadOnly,
+    IsReadIfOwner,
+    IsOwner,
+    DestroyIsOwner,
+)
 
 VERBOSE = "verbose"
+USERINFO = "userinfo"
 
 
-def login(request):
-    return render(request, "scheduler/login.html")
+@api_view(http_method_names=["POST"])
+def create_flag(request):
+    import pdb
+
+    pdb.set_trace()
 
 
-def logout(request):
-    auth_logout(request)
-    return redirect(reverse("index"))
+@api_view(http_method_names=["POST"])
+def toggle_flag(request, pk):
+    # import pdb;
+    # pdb.set_trace()
+    cur_flag = get_object_or_404(Flag, pk=pk)
 
+    if cur_flag.on:
+        cur_flag.on = False
+    else:
+        cur_flag.on = True
 
-def index(request):
-    data = {"user": request.user}
-
-    if request.user.is_authenticated:
-        data["profiles"] = Profile.objects.filter(user=request.user, active=True)
-
-    return render(request, "scheduler/index.html", data)
+    cur_flag.save()
+    serialized_flag = FlagSerializer(cur_flag).data
+    return Response(serialized_flag)
+    # console.log(cur_flag)
 
 
 @api_view(http_method_names=["POST"])
@@ -170,14 +195,20 @@ class UserProfileDetail(generics.RetrieveAPIView):
     def get_serializer_class(self):
         if self.request.query_params.get(VERBOSE, "false") == "true":
             return VerboseProfileSerializer
+        elif self.request.query_params.get(USERINFO, "false") == "true":
+            return UserProfileSerializer
         else:
             return ProfileSerializer
 
 
 class DeleteProfile(generics.DestroyAPIView):
     # TODO this looks like it should really have a permission class...
+
+    permission_classes = (DestroyIsOwner,)
+
     def destroy(self, request, *args, **kwargs):
         profile = get_object_or_404(Profile, pk=self.kwargs["pk"])
+        self.check_object_permissions(request, profile)
         if not profile.active:
             raise PermissionDenied(
                 "This profile ({}) has been deactivated".format(profile)
@@ -236,6 +267,54 @@ class OverrideDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         return self.queryset.get(pk=self.kwargs["pk"])
+
+
+class CreateFlagDetail(generics.CreateAPIView):
+    queryset = Flag.objects.all()
+    serializer_class = FlagSerializer
+
+
+class ToggleFlagDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Flag.objects.all()
+    serializer_class = FlagSerializer
+    # def get_object(self):
+    #     return self.queryset.get(pk=self.kwargs["pk"])
+
+    # def update(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     if instance.on:
+    #         instance.on = False
+    #     else:
+    #         instance.on = True
+    #     instance.save()
+
+    #     serializer = self.get_serializer(instance)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+
+    #     return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        cur_flag = serializer.save()
+        if cur_flag.on:
+            cur_flag.on = False
+        else:
+            cur_flag.on = True
+        cur_flag.save()
+
+    # def perform_update(self, serializer):
+    #     cur_flag = self.get_object()
+    #     if cur_flag.on:
+    #         cur_flag.on = False
+    #     else:
+    #         cur_flag.on = True
+    #     cur_flag.save()
+
+    #     serializer = self.get_serializer(cur_flag)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+
+    #     return Response(serializer.data)
 
 
 class CreateAttendanceDetail(generics.CreateAPIView):

@@ -14,11 +14,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.auth.views import logout_then_login
 from django.urls import path, include
+from django.shortcuts import render
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("scheduler/", include("scheduler.urls")),
+    path("api/", include("scheduler.urls")),
+    path("login/", lambda request: render(request, "frontend/login.html")),
+    path("logout/", logout_then_login),
     path("", include("social_django.urls", namespace="social")),
     path("", include("frontend.urls")),
 ]

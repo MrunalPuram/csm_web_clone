@@ -22,7 +22,7 @@ class TestGhostProfileMaker(TestCase):
         c = factories.CourseFactory.create(name=cls.TEST_COURSE)
         # not using ProfileFactory, because of some weird recursion depth exceeded error
         profiles = []
-        for i in range(cls.NUM_STUDENTS):
+        for _ in range(cls.NUM_STUDENTS):
             profiles.append(
                 Profile(
                     leader=None,
@@ -89,6 +89,6 @@ class TestGhostProfileMaker(TestCase):
         Profile.objects.all().delete()
         User.objects.all().delete()
         call_command(
-            "createghostprofiles", self.with_header_filename, course, "--withheader"
+            "createghostprofiles", self.with_header_filename, course, "--nullsections"
         )
         check()

@@ -1,26 +1,39 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CSM Scheduler</title>
+    {% load static %}
+    <link
+      rel="stylesheet"
+      href="{% static 'frontend/css/style.css' %}"
+      type="text/css"
+      media="screen"
+    />
+    <link
+      href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,900"
+      rel="stylesheet"
+    />
 
-<head>
+		<!-- UIkit CSS -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.3/css/uikit.min.css" integrity="sha256-cnxgu1WK4uhR5pOw/YhkL1qdoVWMPceoQvv0AcIRkF0=" crossorigin="anonymous" />
+    <!-- UIkit JS -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.3/js/uikit.min.js" integrity="sha256-AINUlF7RFhEIU37MsMWXfqC9AlpDnmW8xp1NUfEa8io=" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.3/js/uikit-icons.min.js" integrity="sha256-T3+0YjpPZWQR6G5L8KOHWj/T6gGfMj1CPHDYDp0z3eE=" crossorigin="anonymous"></script>
+		<!-- React and ReactDOM -->
+		{% if DJANGO_ENV == 'prod' %}
+		<script crossorigin src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
+		<script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
+		{% else %}
+		<script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+		<script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>	
+		{% endif %}
+  </head>
 
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Scheduler</title>
-	{% load static %}
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-rc.25/css/uikit.min.css" />
-	<link rel="stylesheet" href="{% static 'frontend/css/style.css' %}" type="text/css" media="screen"/>
+  <body>
+    <div id="app"><!-- React --></div>
+  </body>
 
-
-<!-- UIkit JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-rc.25/js/uikit.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-rc.25/js/uikit-icons.min.js"></script>
-</head>
-
-<body>
-	<div id="app"><!-- React --></div>
-</body>
-
-<script src="{% static 'frontend/main.js' %}"></script>
-
+  <script src="{% static 'frontend/main.js' %}"></script>
 </html>
-

@@ -5,21 +5,25 @@ from django.utils import timezone
 import random
 from django.core import management
 from django.conf import settings
+from django.db.models import signals
 from .models import Course, Section, Spacetime, Profile, User, Attendance, Override
 
 
 class CourseFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Course
 
     name = factory.Sequence(lambda n: "CS%d" % n)
-    valid_until = factory.Faker("date_between", start_date="-1y", end_date="+1y")
+    valid_until = factory.Faker("date_between", start_date="+5w", end_date="+18w")
     enrollment_start = factory.LazyAttribute(
         lambda o: timezone.make_aware(
             factory.Faker(
                 "date_time_between_dates",
-                datetime_start=o.valid_until - timedelta(weeks=17),
-                datetime_end=o.valid_until - timedelta(weeks=10),
+                datetime_start=timezone.now() - timedelta(weeks=3),
+                datetime_end=timezone.now() + timedelta(weeks=3),
             ).generate({})
         )
     )
@@ -41,6 +45,9 @@ DAY_OF_WEEK_DB_CHOICES = [
 
 
 class SpacetimeFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Spacetime
 
@@ -53,6 +60,9 @@ class SpacetimeFactory(factory.DjangoModelFactory):
 
 
 class UserFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = User
 
@@ -72,6 +82,9 @@ ROLE_DB_CHOICES = [db_value for db_value, display_name in Profile.ROLE_CHOICES]
 
 
 class ProfileFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Profile
 
@@ -85,6 +98,9 @@ class ProfileFactory(factory.DjangoModelFactory):
 
 
 class SectionFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Section
 
@@ -99,6 +115,9 @@ PRESENCE_DB_VALUES = [
 
 
 class AttendanceFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Attendance
 
@@ -108,6 +127,9 @@ class AttendanceFactory(factory.DjangoModelFactory):
 
 
 class OverrideFactory(factory.DjangoModelFactory):
+    @factory.django.mute_signals(
+        signals.pre_save, signals.post_save, signals.pre_delete
+    )
     class Meta:
         model = Override
 
@@ -231,11 +253,30 @@ def create_demo_accounts():
     print("The password for these accounts is 'pass', log in at localhost:8000/admin/")
 
 
+def disable_signals():
+    original_signals = []
+    for signal in (
+        signals.pre_save,
+        signals.pre_delete,
+        signals.post_save,
+        signals.post_delete,
+    ):
+        original_signals.append((signal, signal.receivers))
+        signal.receivers = []
+    return original_signals
+
+
+def reenable_signals(original_signals):
+    for signal, receivers in original_signals:
+        signal.receivers = receivers
+
+
 def generate_test_data(complicate=False):
     if not settings.DEBUG:
         print("This cannot be run in production! Aborting.")
         return
     management.call_command("flush", interactive=True)
+    original_signals = disable_signals()
     course_names = ("CS70", "CS61A", "CS61B", "CS61C", "EE16A")
     print("Generating test data...")
     for course in (CourseFactory.create(name=name) for name in course_names):
@@ -267,7 +308,14 @@ def generate_test_data(complicate=False):
             )
             for junior_mentor in junior_mentors:
                 create_section_for(junior_mentor)
+
         print("Done")
+    open_course = Course.objects.get(name="CS61A")
+    open_course.enrollment_start = timezone.now() - timedelta(days=14)
+    open_course.enrollment_end = timezone.now() + timedelta(days=14)
+    open_course.valid_until = timezone.now() + timedelta(days=100)
+    open_course.save()
     if complicate:
         complicate_data()
     create_demo_accounts()
+    reenable_signals(original_signals)

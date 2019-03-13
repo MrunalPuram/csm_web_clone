@@ -1,157 +1,240 @@
 import React from "react";
-
-class Override extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      location: null,
-      startTime: null,
-      duration: null,
-      dayOfWeek: null,
-      date: null
-    };
-    this.handleInputChange = this.handleInputChange.bind(this);
-  }
-
-  handleInputChange(event) {
-    const [name, value] = [event.target.name, event.target.value];
-    this.setState({ [name]: value });
-  }
-
-  render() {
-    const inputParameters = [
-      ["Location", "location", "text"],
-      ["Start time", "startTime", "time"],
-      ["Duration", "duration", "number"],
-      ["Date", "date", "date"]
-    ];
-    const inputs = inputParameters.map(parameters => {
-      const [label, name, type] = parameters;
-      return (
-        <label>
-          {label}
-          <input
-            name={name}
-            type={type}
-            onChange={this.handleInputChange}
-            className="uk-input"
-          />
-        </label>
-      );
-    });
-
-    return (
-      <div>
-        <button
-          className="uk-button uk-button-default"
-          type="button"
-          style={{ float: "right" }}
-          data-uk-toggle="target: #override-modal"
-        >
-          Override
-        </button>
-        <div id="override-modal" data-uk-modal>
-          <div className="uk-modal-dialog uk-modal-body">
-            <button
-              className="uk-modal-close"
-              type="button"
-              style={{ float: "right" }}
-              data-uk-icon="icon: close"
-            >
-              {" "}
-            </button>
-            <h2 className="uk-modal-title" style={{ marginTop: "0px" }}>
-              Override
-            </h2>
-            <form>{inputs}</form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
+import Override from "./Override";
+import DropSection from "./DropSection";
+import Roster from "./Roster";
+import moment from "moment";
+import { fetchWithMethod, HTTP_METHODS } from "../utils/api";
 
 function SectionSummary(props) {
   return (
     <div className="uk-section uk-section-primary section-summary">
       <div className="uk-container">
         <div>
-          <h2>{props.courseName}</h2>
-          {props.isMentor && <Override />}
+          {!props.isMentor && <DropSection profileID={props.profile} />}
+
+          <h2 style={{ clear: "both" }}>{props.courseName}</h2>
+          {props.isMentor && <Override sectionID={props.sectionID} />}
+          {props.isMentor && (
+            <Roster studentIDs={props.studentIDs} sectionID={props.sectionID} />
+          )}
         </div>
         <p>
           {props.defaultSpacetime.dayOfWeek} {props.defaultSpacetime.startTime}{" "}
           - {props.defaultSpacetime.endTime}
         </p>
         <p>{props.defaultSpacetime.location}</p>
-        <p>
-          {props.mentor.mentorName}{" "}
-          <a href={`mailto:${props.mentor.mentorEmail}`}>
-            {props.mentor.mentorEmail}
-          </a>
-        </p>
+        <p>{`${props.mentor.firstName} ${props.mentor.lastName}`} </p>
+        <a href={`mailto:${props.mentor.email}`}>{props.mentor.email}</a>
       </div>
     </div>
   );
 }
 
-function WeekAttendance(props) {
-  const studentAttendances = Object.entries(props.attendance);
-  const studentAttendanceListEntries = studentAttendances.map(
-    (attendance, index) => (
-      <li key={index}> {`${attendance[0]} ${attendance[1]}`} </li>
-    )
-  );
-  return (
-    <div>
-      <h4>Week {props.weekNum}</h4>
-      <ul className="uk-list">{studentAttendanceListEntries}</ul>
-    </div>
-  );
-}
-class Attendances extends React.Component {
-  /*
+class WeekAttendance extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      profile: props.profile,
-      attendances: []
+      attendance: Object.assign({}, props.attendance),
+      changed: new Set(),
+      status: "unchanged"
     };
+    this.handleInputChange = this.handleInputChange.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
   }
-  componentDidMount() {
-    fetch(`/scheduler/profiles/${this.state.profile}/attendance`)
-      .then(response => response.json())
-      .then(attendances =>
-        this.setState((state, props) => {
-          return {
-            attendances: [...attendances, ...state.attendances]
-          };
-        })
+
+  handleInputChange(event) {
+    const { id, name, value } = event.target;
+    this.setState(state => ({
+      attendance: (() => {
+        state.attendance[id] = [name, value];
+        return state.attendance;
+      })(),
+      changed: state.changed.add(id)
+    }));
+  }
+
+  async handleSubmit(event) {
+    event.preventDefault();
+    //var ok = true;
+    this.setState({ status: "loading" });
+    let requests = Array.from(this.state.changed).map(pk => {
+      const [studentName, presence] = this.state.attendance[pk];
+      return fetchWithMethod(`attendances/${pk}/`, HTTP_METHODS.PATCH, {
+        presence: presence
+      }).then(response => response.ok);
+    });
+    await Promise.all(requests)
+      .then(() =>
+        this.setState(
+          {
+            status: requests.every(request => request) ? "successful" : "failed"
+          },
+          () => setTimeout(() => this.setState({ status: "unchanged" }), 3000)
+        )
+      )
+      .catch(() =>
+        this.setState({ status: "failed" }, () =>
+          setTimeout(() => this.setState({ status: "unchanged" }), 3000)
+        )
       );
   }
-	*/
+
   render() {
-    const attendances = this.props.attendances;
-    const weekAttendances = attendances.map((attendance, index) => (
-      <WeekAttendance attendance={attendance} weekNum={index} key={index} />
-    ));
-    return <div>{weekAttendances}</div>;
+    const presenceDisplayMap = {
+      EX: "Excused Absence",
+      UN: "Unexcused Absence",
+      PR: "Present",
+      "": "Your mentor has not yet recorded attendance for this week"
+    };
+    const studentAttendances = Object.entries(this.state.attendance);
+    const studentAttendanceListEntries = studentAttendances.map(attendance => {
+      const [pk, details] = attendance;
+      const [studentName, presence] = details;
+      if (this.props.isMentor) {
+        return (
+          <div key={pk} className="uk-margin">
+            <label className="uk-form-label" htmlFor={pk}>
+              {" "}
+              {studentName}
+            </label>
+            <select
+              id={pk}
+              className="uk-select uk-form-width-medium"
+              value={presence}
+              name={studentName}
+              onChange={this.handleInputChange}
+            >
+              <option value="">---</option>
+              <option value="EX">{presenceDisplayMap["EX"]}</option>
+              <option value="UN">{presenceDisplayMap["UN"]}</option>
+              <option value="PR">{presenceDisplayMap["PR"]}</option>
+            </select>
+          </div>
+        );
+      } else {
+        return (
+          <div key={pk} className="uk-margin">
+            <p>{presenceDisplayMap[presence]}</p>
+          </div>
+        );
+      }
+    });
+    if (this.props.isMentor) {
+      return (
+        <li>
+          <a className="uk-accordion-title" href="#">
+            Week {this.props.weekNum}
+          </a>
+          <div className="uk-accordion-content">
+            <form className="uk-form-horizontal" onSubmit={this.handleSubmit}>
+              {studentAttendanceListEntries}
+              <button className="uk-button uk-button-default uk-button-small">
+                Save changes
+              </button>
+              {this.state.status == "loading" && (
+                <span
+                  data-uk-spinner="ratio: 1"
+                  style={{ marginLeft: "5px" }}
+                />
+              )}
+              {this.state.status == "successful" && (
+                <span
+                  data-uk-icon="icon: check; ratio: 1.5"
+                  style={{ color: "green" }}
+                />
+              )}
+              {this.state.status == "failed" && (
+                <span style={{ fontWeight: "bold" }}>
+                  <span
+                    data-uk-icon="icon: close; ratio: 1.5"
+                    style={{ color: "red" }}
+                  />
+                  Unable to save attendance
+                </span>
+              )}
+            </form>
+          </div>
+        </li>
+      );
+    } else {
+      return (
+        <li>
+          <a className="uk-accordion-title" href="#">
+            Week {this.props.weekNum}
+          </a>
+          <div className="uk-accordion-content">
+            {studentAttendanceListEntries}
+          </div>
+        </li>
+      );
+    }
   }
 }
 
-function Section(props) {
-  return (
-    <div>
-      <SectionSummary
-        defaultSpacetime={props.defaultSpacetime}
-        mentor={props.mentor}
-        courseName={props.courseName}
-        isMentor={props.isMentor}
-      />
-      <Attendances attendances={props.attendances} />
-    </div>
-  );
+class Attendances extends React.Component {
+  render() {
+    const attendances = this.props.attendances;
+    if (attendances) {
+      const weekAttendances = attendances.map((attendance, index) => (
+        <WeekAttendance
+          attendance={attendance}
+          weekNum={index}
+          key={index}
+          isMentor={this.props.isMentor}
+        />
+      ));
+      weekAttendances.reverse();
+      return (
+        <div className="uk-container">
+          <ul data-uk-accordion="active: 0">{weekAttendances}</ul>
+        </div>
+      );
+    }
+  }
 }
 
+class Section extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+  render() {
+    const defaultSpacetime = Object.assign(
+      {},
+      this.props.activeOverride
+        ? this.props.activeOverride.spacetime
+        : this.props.defaultSpacetime
+    ); // this.props are supposed to be immutable
+    defaultSpacetime.startTime = moment(
+      defaultSpacetime.startTime,
+      "HH:mm:ss"
+    ).format("hh:mm A");
+    defaultSpacetime.endTime = moment(
+      defaultSpacetime.endTime,
+      "HH:mm:ss"
+    ).format("hh:mm A");
+    return (
+      <div>
+        <SectionSummary
+          defaultSpacetime={defaultSpacetime}
+          mentor={this.props.mentor.user}
+          courseName={this.props.courseName}
+          isMentor={this.props.isMentor}
+          sectionID={this.props.id}
+          profile={this.props.profile}
+          studentIDs={this.props.students}
+        />
+        <Attendances
+          attendances={this.props.attendances}
+          isMentor={this.props.isMentor}
+        />
+      </div>
+    );
+  }
+
+  componentWillUnmount() {
+    const modals = document.querySelectorAll('[data-uk-modal="true"]');
+    modals.forEach(modal => modal.remove());
+  }
+}
 export default Section;
 export { SectionSummary };

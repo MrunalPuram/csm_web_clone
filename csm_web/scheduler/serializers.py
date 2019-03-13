@@ -1,7 +1,16 @@
 from datetime import timedelta
 from django.utils import timezone
 from rest_framework import serializers
-from .models import User, Attendance, Course, Profile, Section, Spacetime, Override
+from .models import (
+    User,
+    Attendance,
+    Course,
+    Profile,
+    Section,
+    Spacetime,
+    Override,
+    Flag,
+)
 from .permissions import is_leader
 from itertools import groupby
 from datetime import datetime
@@ -18,11 +27,21 @@ class CourseSerializer(serializers.ModelSerializer):
 
 class SpacetimeSerializer(serializers.ModelSerializer):
     end_time = serializers.SerializerMethodField()
-    day_of_week = serializers.SerializerMethodField()
+    # day_of_week = serializers.SerializerMethodField()
+    day_of_week_value = serializers.CharField(source="day_of_week")
+    day_of_week = serializers.CharField(
+        source="get_day_of_week_display", read_only=True
+    )
 
     class Meta:
         model = Spacetime
-        fields = ("location", "start_time", "day_of_week", "end_time")
+        fields = (
+            "location",
+            "start_time",
+            "day_of_week_value",
+            "end_time",
+            "day_of_week",
+        )
 
     def get_end_time(self, obj):
         start_datetime = datetime(
@@ -36,8 +55,8 @@ class SpacetimeSerializer(serializers.ModelSerializer):
         end_time = (start_datetime + obj.duration).time()
         return end_time
 
-    def get_day_of_week(self, obj):
-        return obj.get_day_of_week_display()
+    # def get_day_of_week(self, obj):
+    #    return obj.get_day_of_week_display()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -52,7 +71,21 @@ class AttendanceSerializer(serializers.ModelSerializer):
         fields = ("id", "section", "week_start", "presence", "attendee")
 
 
+class FlagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flag
+        fields = ("id", "on")
+
+
 class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ("id", "leader", "course", "role", "user", "section")
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+
     class Meta:
         model = Profile
         fields = ("id", "leader", "course", "role", "user", "section")
@@ -60,7 +93,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class SectionSerializer(serializers.ModelSerializer):
     default_spacetime = SpacetimeSerializer()
-    mentor = ProfileSerializer()
+    # This is not VerboseProfileSerializer otherwise there would be a cyclic dependency
+    mentor = UserProfileSerializer()
     enrolled_students = serializers.SerializerMethodField()
 
     class Meta:
@@ -103,7 +137,9 @@ class ActiveOverrideField(serializers.RelatedField):
 
         # We want the latest override for this week
 
-        weekday = timezone.now().weekday()
+        weekday = (
+            timezone.now().weekday() + 1
+        ) % 7  # Shift to make Sunday first day of the week
         current_week_start = timezone.now().date() - timedelta(days=weekday)
         current_week_end = current_week_start + timedelta(days=7)
 
@@ -129,7 +165,8 @@ class VerboseSectionSerializer(serializers.ModelSerializer):
     course_name = serializers.SerializerMethodField()
     is_mentor = serializers.SerializerMethodField()
     attendances = serializers.SerializerMethodField()
-    mentor = ProfileSerializer()
+    # This is not VerboseProfileSerializer otherwise there would be a cyclic dependency
+    mentor = UserProfileSerializer()
 
     class Meta:
         model = Section
@@ -152,20 +189,40 @@ class VerboseSectionSerializer(serializers.ModelSerializer):
                     (
                         student.user.first_name + " " + student.user.last_name,
                         attendance.week_start,
-                        attendance.get_presence_display(),
+                        attendance.presence,
+                        attendance.id,
                     )
                     for attendance in student.attendance_set.all()
                 ]
-                for student in obj.students.all()
+                for student in obj.active_students.all()
             ]
             flat_attendances = [item for lst in nested_attendances for item in lst]
             flat_attendances.sort(key=lambda tuple: tuple[1])
             grouped_attendances = groupby(flat_attendances, key=lambda tuple: tuple[1])
             attendances = [
-                {name: presence for name, week_start, presence in group}
+                {str(pk): [name, presence] for name, week_start, presence, pk in group}
                 for key, group in grouped_attendances
             ]
             return attendances
+        else:
+            attendances = (
+                self.context["request"]
+                .user.profile_set.filter(section=obj)
+                .first()
+                .attendance_set.all()
+            )
+            attendances = sorted(
+                attendances, key=lambda attendance: attendance.week_start
+            )
+            student_name = (
+                self.context["request"].user.first_name
+                + " "
+                + self.context["request"].user.last_name
+            )
+            return [
+                {str(attendance.id): [student_name, attendance.presence]}
+                for attendance in attendances
+            ]
 
     def get_course_name(self, obj):
         return obj.course.name

@@ -21,11 +21,7 @@ from rest_framework.routers import DefaultRouter
 
 from . import views
 
-urlpatterns = [
-    path("", views.index, name="index"),
-    path("login", views.login, name="login"),
-    path("logout", views.logout, name="logout"),
-]
+urlpatterns = []
 
 rest_urlpatterns = [
     path("courses/", views.CourseList.as_view()),
@@ -41,16 +37,11 @@ rest_urlpatterns = [
     path("overrides/<int:pk>/", views.OverrideDetail.as_view()),
     path("attendances/", views.CreateAttendanceDetail.as_view()),
     path("attendances/<int:pk>/", views.AttendanceDetail.as_view()),
+    path("flag/", views.create_flag, name="create_flag"),
+    path("flags/", views.CreateFlagDetail.as_view()),
+    path("flag/<int:pk>/toggle", views.toggle_flag, name="toggle_flag"),
+    path("flags/<int:pk>/toggle", views.ToggleFlagDetail.as_view()),
     # all endpoints listed here https://paper.dropbox.com/doc/Scheduler-2.0-K0ZNsLU5DZ7JjGudjqKIt
 ]
 
 urlpatterns.extend(format_suffix_patterns(rest_urlpatterns))
-
-# API Stub Routes
-# TODO remove these in production
-router = DefaultRouter()
-router.register(r"users", views.UserViewSet)
-router.register(r"allprofiles", views.ProfileViewSet)
-router.register(r"spacetimes", views.SpacetimeViewSet)
-
-urlpatterns.extend(router.urls)
