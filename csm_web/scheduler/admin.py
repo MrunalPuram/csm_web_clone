@@ -13,7 +13,10 @@ from scheduler.models import (
     Section,
     Spacetime,
     Override,
+    Flag,
 )
+
+admin.site.register(Flag)
 
 
 class CoordAdmin(admin.ModelAdmin):

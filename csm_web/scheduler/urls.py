@@ -37,6 +37,10 @@ rest_urlpatterns = [
     path("overrides/<int:pk>/", views.OverrideDetail.as_view()),
     path("attendances/", views.CreateAttendanceDetail.as_view()),
     path("attendances/<int:pk>/", views.AttendanceDetail.as_view()),
+    path("flag/", views.create_flag, name="create_flag"),
+    path("flags/", views.CreateFlagDetail.as_view()),
+    path("flag/<int:pk>/toggle", views.toggle_flag, name="toggle_flag"),
+    path("flags/<int:pk>/toggle", views.ToggleFlagDetail.as_view()),
     # all endpoints listed here https://paper.dropbox.com/doc/Scheduler-2.0-K0ZNsLU5DZ7JjGudjqKIt
 ]
 

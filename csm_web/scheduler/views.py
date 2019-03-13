@@ -9,7 +9,16 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
-from .models import User, Attendance, Course, Profile, Section, Spacetime, Override
+from .models import (
+    User,
+    Attendance,
+    Course,
+    Profile,
+    Section,
+    Spacetime,
+    Override,
+    Flag,
+)
 from .serializers import (
     UserSerializer,
     AttendanceSerializer,
@@ -20,6 +29,7 @@ from .serializers import (
     SectionSerializer,
     SpacetimeSerializer,
     OverrideSerializer,
+    FlagSerializer,
 )
 from .permissions import (
     is_leader,
@@ -32,6 +42,30 @@ from .permissions import (
 
 VERBOSE = "verbose"
 USERINFO = "userinfo"
+
+
+@api_view(http_method_names=["POST"])
+def create_flag(request):
+    import pdb
+
+    pdb.set_trace()
+
+
+@api_view(http_method_names=["POST"])
+def toggle_flag(request, pk):
+    # import pdb;
+    # pdb.set_trace()
+    cur_flag = get_object_or_404(Flag, pk=pk)
+
+    if cur_flag.on:
+        cur_flag.on = False
+    else:
+        cur_flag.on = True
+
+    cur_flag.save()
+    serialized_flag = FlagSerializer(cur_flag).data
+    return Response(serialized_flag)
+    # console.log(cur_flag)
 
 
 @api_view(http_method_names=["POST"])
@@ -233,6 +267,54 @@ class OverrideDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         return self.queryset.get(pk=self.kwargs["pk"])
+
+
+class CreateFlagDetail(generics.CreateAPIView):
+    queryset = Flag.objects.all()
+    serializer_class = FlagSerializer
+
+
+class ToggleFlagDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Flag.objects.all()
+    serializer_class = FlagSerializer
+    # def get_object(self):
+    #     return self.queryset.get(pk=self.kwargs["pk"])
+
+    # def update(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     if instance.on:
+    #         instance.on = False
+    #     else:
+    #         instance.on = True
+    #     instance.save()
+
+    #     serializer = self.get_serializer(instance)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+
+    #     return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        cur_flag = serializer.save()
+        if cur_flag.on:
+            cur_flag.on = False
+        else:
+            cur_flag.on = True
+        cur_flag.save()
+
+    # def perform_update(self, serializer):
+    #     cur_flag = self.get_object()
+    #     if cur_flag.on:
+    #         cur_flag.on = False
+    #     else:
+    #         cur_flag.on = True
+    #     cur_flag.save()
+
+    #     serializer = self.get_serializer(cur_flag)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+
+    #     return Response(serializer.data)
 
 
 class CreateAttendanceDetail(generics.CreateAPIView):
