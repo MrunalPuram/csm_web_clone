@@ -14,7 +14,7 @@ python-dateutil==2.7.5
 python-social-auth[django]==0.3.6
 python3-openid==3.1.0
 pytz==2018.7
-pyyaml==3.13
+pyyaml==5.4
 requests==2.20.1
 requests-oauthlib==1.0.0
 six==1.11.0
